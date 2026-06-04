@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clock Widget</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .widget {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .datetime {
+      font-size: 15px;
+      color: #888;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 8px;
+      letter-spacing: 0.01em;
+    }
+
+    .greeting {
+      font-size: 46px;
+      font-weight: 500;
+      color: #111;
+      line-height: 1.15;
+      margin-bottom: 28px;
+    }
+
+    .divider {
+      width: 36px;
+      height: 1.5px;
+      background: #ddd;
+      margin-bottom: 22px;
+    }
+
+    .settings {
+      background: #f7f7f5;
+      border-radius: 14px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lbl {
+      font-size: 11px;
+      color: #aaa;
+      width: 72px;
+      flex-shrink: 0;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    input[type="text"], select {
+      flex: 1;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      padding: 6px 10px;
+      border: 0.5px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      color: #111;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: #aaa;
+    }
+
+    .fmt-btns { display: flex; gap: 6px; }
+
+    .fmt-btns button {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 0.5px solid #ddd;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .fmt-btns button.active {
+      background: #111;
+      color: #fff;
+      border-color: #111;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: transparent; }
+      .greeting { color: #f0f0f0; }
+      .datetime { color: #777; }
+      .divider { background: #333; }
+      .settings { background: #1a1a1a; }
+      input[type="text"], select { background: #111; color: #f0f0f0; border-color: #333; }
+      .lbl { color: #555; }
+      .fmt-btns button { color: #666; border-color: #333; }
+      .fmt-btns button.active { background: #f0f0f0; color: #111; border-color: #f0f0f0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="datetime" id="gdt"></div>
+    <div class="greeting" id="ggreet"></div>
+    <div class="divider"></div>
+    <div class="settings">
+      <div class="row">
+        <span class="lbl">Name</span>
+        <input type="text" id="nameInput" value="Friend" placeholder="Your name" oninput="render()" />
+      </div>
+      <div class="row">
+        <span class="lbl">Timezone</span>
+        <select id="tzSel" onchange="render()"></select>
+      </div>
+      <div class="row">
+        <span class="lbl">Format</span>
+        <div class="fmt-btns">
+          <button id="b12" class="active" onclick="setFmt(12)">12h</button>
+          <button id="b24" onclick="setFmt(24)">24h</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ZONES=[["Pacific/Honolulu","(UTC-10) Hawaii"],["America/Los_Angeles","(UTC-8) Pacific"],["America/Denver","(UTC-7) Mountain"],["America/Chicago","(UTC-6) Central"],["America/New_York","(UTC-5) Eastern"],["America/Sao_Paulo","(UTC-3) São Paulo"],["Europe/London","(UTC+0) London"],["Europe/Paris","(UTC+1) Paris / Berlin"],["Europe/Helsinki","(UTC+2) Helsinki"],["Europe/Moscow","(UTC+3) Moscow"],["Asia/Dubai","(UTC+4) Dubai"],["Asia/Karachi","(UTC+5) Karachi"],["Asia/Kolkata","(UTC+5:30) Kolkata / Mumbai"],["Asia/Dhaka","(UTC+6) Dhaka"],["Asia/Bangkok","(UTC+7) Bangkok"],["Asia/Shanghai","(UTC+8) Singapore / Beijing"],["Asia/Tokyo","(UTC+9) Tokyo"],["Australia/Sydney","(UTC+10) Sydney"],["Pacific/Auckland","(UTC+12) Auckland"]];
+    const pad = n => String(n).padStart(2,'0');
+    let fmt = 12;
+
+    function setFmt(f) {
+      fmt = f;
+      document.getElementById('b12').classList.toggle('active', f===12);
+      document.getElementById('b24').classList.toggle('active', f===24);
+      render();
+    }
+
+    function greeting(h) {
+      if (h >= 5 && h < 12) return 'Good morning';
+      if (h >= 12 && h < 17) return 'Good afternoon';
+      if (h >= 17 && h < 21) return 'Good evening';
+      return 'Good night';
+    }
+
+    function buildSelect() {
+      const sel = document.getElementById('tzSel');
+      let local = null;
+      try { local = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e) {}
+      ZONES.forEach(([v, l]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = l;
+        if (v === local) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+
+    function render() {
+      const tz = document.getElementById('tzSel').value || 'UTC';
+      const name = document.getElementById('nameInput').value.trim() || 'Friend';
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz, weekday:'long', day:'2-digit', month:'long', year:'numeric',
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: fmt===12
+      }).formatToParts(now);
+      const get = t => (parts.find(p => p.type===t)||{}).value || '';
+      const h24 = new Intl.DateTimeFormat('en', { timeZone: tz, hour:'numeric', hour12:false }).format(now);
+      const ap = get('dayPeriod');
+      const timeStr = pad(parseInt(get('hour'))) + ':' + get('minute') + ':' + get('second') + (fmt===12 ? ' ' + ap : '');
+      document.getElementById('gdt').textContent = get('weekday') + ', ' + parseInt(get('day')) + ' ' + get('month') + ' ' + get('year') + ' | ' + timeStr;
+      document.getElementById('ggreet').textContent = greeting(parseInt(h24)) + ', ' + name + '.';
+    }
+
+    buildSelect();
+    render();
+    setInterval(render, 1000);
+  </script>
+</body>
+</html>
